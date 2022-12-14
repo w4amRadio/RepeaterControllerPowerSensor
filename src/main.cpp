@@ -37,6 +37,23 @@ char* convertToConstCharArray(String someString){
   return constCharBuffer;
 }
 
+
+//returns value in mV
+float adcDecimation(int additionalSimulationBitsResolution, uint8_t pin){
+  float fSamples=pow(4,(float) additionalSimulationBitsResolution);
+  int samples = (int)(fSamples+0.5);
+  long dv = 0;
+  for(byte avg = 0;avg < 10; avg++){
+    for(int j = 0; j < samples; j++){
+      dv+= analogRead(pin);
+    }
+  }
+  dv=(dv/10);
+  dv = dv>>additionalSimulationBitsResolution;
+
+  return 250 * (dv/(2 << 16));
+}
+
 void setup() {
 
   //only if we're in debug mode do we worry about outputting Serial.print lines
@@ -81,6 +98,9 @@ float readCurrentFromPins(uint8_t pin1, uint8_t pin2){
   float v2 = (analogRead(pin2) * CONVERSION_FACTOR) / 1024.0;
 
   float current = abs(v1 - v2) / SHUNT_RESISTANCE;
+
+  current = adcDecimation(6, pin1);
+
   return current;
 }
 
