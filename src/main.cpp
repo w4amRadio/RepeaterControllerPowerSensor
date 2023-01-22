@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <string.h>
+#include <ArduinoJson.h>
 //#include <Memory.h>   //for "smart pointers"
 #include "RepeaterEnergySensor.h"
 
@@ -14,6 +15,8 @@ struct MEASUREMENT_SAMPLE {
 
 MEASUREMENT_SAMPLE sample;
 
+DynamicJsonDocument doc(2048);
+
 //this is the method where we'll send whatever our sample is back over to the pi
 void requestEvent(){
   //Serialize our measurement to json
@@ -21,7 +24,10 @@ void requestEvent(){
   
   String rpiCommand = Wire.readString();
 
-  if(rpiCommand.equals("healthcheck")){
+  DeserializationError err = deserializeJson(doc, rpiCommand);
+  String piCommand = doc["Command"];
+
+  if(piCommand.equals("healthcheck")){
     Wire.write("I am alive.");
   }
   else{
@@ -67,6 +73,33 @@ void setup() {
 
   //note that the type that this expects as input, void (*)() is a method with void return type, which is defined above
   Wire.onRequest(requestEvent);
+
+  //Repeater Activators board
+  pinMode(5, OUTPUT);   //pin 5 is D2, which will be clock 
+  pinMode(6, OUTPUT);   //pin 6 is D3, which will be data
+}
+
+void SendActivatorsSignal(int address){
+  for(int i = 0; i < 8; i++){
+    //set clock low
+    digitalWrite(5, LOW);
+
+    uint8_t bitValue = address & 0x80;
+    if(bitValue == 1){
+      address ^= 0x80;
+      digitalWrite(6, HIGH);
+    }
+    else{
+      digitalWrite(6, LOW);
+    }
+    address = address << 1;
+
+    //set clock high
+    digitalWrite(5, HIGH);
+  }
+
+  //set clock back to low
+  digitalWrite(5, LOW);
 }
 
 float readVoltageFromPin(uint8_t pin){
